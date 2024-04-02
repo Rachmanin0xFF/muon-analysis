@@ -84,7 +84,7 @@ for rate, dtheta, a0 in zip(measurements, angles, angles0):
     bc.append(bin_centers)
     ai.append(avg_areas)
 plt.xlim(0, 90)
-plt.xlabel("Polar Viewing Angle [°]")
+plt.xlabel("Zenith Viewing Angle [°]")
 plt.ylabel(r"Average Projected Area [$m^2$]")
 plt.legend()
 plt.grid(alpha=0.12, color="black")
@@ -100,8 +100,8 @@ def combine_with_weights(w):
 
 def inner_product(A, B):
     total = 0.0
-    dSolidAngle = np.sin(bin_centers)*(histo_bins[1]-histo_bins[0])*2.0*np.pi
-    return np.sum(dSolidAngle*A*B)*eta**2 / 4.0
+    dSolidAngle = np.sin(bin_centers)*(histo_bins[1]-histo_bins[0])
+    return np.sum(dSolidAngle*A*B)*eta**2*4.0
 
 print(inner_product(np.ones_like(bin_centers), np.ones_like(bin_centers)))
 
@@ -142,14 +142,14 @@ ylow = np.array(ylow)
 yhigh = np.array(yhigh)
 #for j in range(0, len(ai)):
 #        plt.plot(bin_centers, measurements[j]*ai[j]/(eta**2 / NOMINAL_AREA))
-plt.xlabel("Polar Angle (°)")
+plt.xlabel("Zenith Angle (°)")
 plt.grid(alpha=0.12, color="black")
 plt.fill_between(bin_centers*180.0/np.pi, ylow, yhigh, alpha=0.3)
 plt.plot(bin_centers*180.0/np.pi, all_yvals, color="black", label="Weighted Average Reconstruction")
 plt.plot(bin_centers*180.0/np.pi, func(bin_centers, *popt), color="red", linestyle="dashed", label=r"Curve Fit: $" + str(popt[0]) + r"\cos^2(\theta) + " + str(popt[1]) + r"12$")
 plt.legend()
 
-plt.ylabel(r"Muon Flux [$s^{-1}m^{-2}sr^{-2}$]")
+plt.ylabel(r"Muon Flux [$s^{-1}m^{-2}sr^{-1}$]")
 plt.xlim(0, 90.0)
 #plt.ylim(0, 120)
 plt.savefig("teleplot.png",dpi=300)
@@ -164,19 +164,31 @@ import scipy
 def get_total_badness(weights, alpha):
     combined = combine_with_weights(weights)
     my_sum = 0.0
+    my_cum = 0.0
     for (meas, area_i) in zip(measurements, ai):
         P = inner_product(combined, area_i)/eta**2
         my_sum += (P - meas)**2
-    return (my_sum + np.sum(np.array(weights)**2)*alpha)
+        my_cum += 100.0*len(combined[combined < 0])
+    #return (my_sum + np.sum(np.array(weights)**2)*alpha)
+    return my_sum + np.sum(np.diff(np.diff(combined))**2)*alpha + my_cum*alpha
+
 
 alpha = 6.5e-5
 alpha_low = 4e-5
 alpha_high = 9e-5
+
+alpha =  0.8
+alpha_low = 0.5
+alpha_high = 1.9
+
 consts = scipy.optimize.minimize(get_total_badness, np.array([1, 0, 0, 0, 0]), args=(alpha), method='Powell')
 consts_low = scipy.optimize.minimize(get_total_badness, np.array([1, 0, 0, 0, 0]), args=(alpha_low), method='Powell')
 consts_high = scipy.optimize.minimize(get_total_badness, np.array([1, 0, 0, 0, 0]), args=(alpha_high), method='Powell')
+
+consts_low.x *= (1.0 - 1.0/(9.0))
+consts_high.x *= (1.0 + (1.0/9.0))
 plt.grid(alpha=0.12, color="black")
-plt.fill_between(bin_centers*180.0/np.pi, combine_with_weights(consts_low.x) + 5, combine_with_weights(consts_high.x) - 5, alpha=0.25)
+plt.fill_between(bin_centers*180.0/np.pi, combine_with_weights(consts_low.x) - 4, combine_with_weights(consts_high.x) + 4, alpha=0.25)
 
 popt, pcov = curve_fit(func, bin_centers, combine_with_weights(consts.x), p0=[84, 13])
 print(popt)
@@ -184,7 +196,12 @@ print(pcov[0][0]**0.5)
 print(pcov[1][1]**0.5)
 
 plt.plot(bin_centers*180.0/np.pi, combine_with_weights(consts.x), label="Deconvolved Solution", color="black")
-plt.plot(bin_centers*180.0/np.pi, func(bin_centers, *popt), label=r"Fit: $(107\pm 32) \cos^2(\theta) + (0\pm 1)$", linestyle="dashed", color="red")
+plt.plot(bin_centers*180.0/np.pi, func(bin_centers, *popt), label=r"Fit: $(95\pm 10) \cos^2(\theta) + (5\pm 6)$", linestyle="dashed", color="red")
+
+print("AAAAAAAAAA")
+print(combine_with_weights(consts.x))
+print(func(bin_centers, *popt))
+print()
 
 iii = 0
 for (a, ww) in zip(ai, consts.x):
@@ -193,9 +210,9 @@ for (a, ww) in zip(ai, consts.x):
     #else:
         #plt.plot(bin_centers, a*ww, color="green", linestyle="dotted")
     iii += 1
-plt.xlabel(r"Polar Angle ($\degree$)")
+plt.xlabel(r"Zenith Angle ($\degree$)")
 plt.xlim(0, 90.0)
-plt.ylim(0, 150.0)
+#plt.ylim(0, 150.0)
 plt.ylabel(r"Muon Flux $(sr^{-1}m^{-2}s^{-1})$")
 plt.legend()
 plt.savefig("good_unfold.png", dpi=300)
@@ -204,20 +221,31 @@ plt.show()
 print(inner_product(ai[0], ai[0]))
 print(consts.x)
 
-
+from scipy.signal import savgol_filter
 L_CURVE_SCAN = False
 if L_CURVE_SCAN:
     L_curve_y = []
     L_curve_x = []
-    for x in np.arange(-10, 1, 0.05):
+    v0_y = []
+    for x in np.arange(-10, 5, 0.05):
         expval = 10**x
         L_curve_x.append(expval)
         consts = scipy.optimize.minimize(get_total_badness, np.array([0, 0, 0, 0, 0]), args=(expval), method='Powell')
         new_weights = consts.x
         L_curve_y.append(np.log(get_total_badness(new_weights, 0.0)))
+        v0_y.append(combine_with_weights(new_weights)[0])
+    L_curve_y = np.array(L_curve_y)
+    L_curve_y[1:-1] = (L_curve_y[2:] + L_curve_y[1:-1] + L_curve_y[:-2])/3.0
+    L_curve_y[1:-1] = (L_curve_y[2:] + L_curve_y[1:-1] + L_curve_y[:-2])/3.0
+    L_curve_y[1:-1] = (L_curve_y[2:] + L_curve_y[1:-1] + L_curve_y[:-2])/3.0
     plt.plot(L_curve_x[1:-1], np.diff(np.diff(L_curve_y)))
     plt.xscale('log')
-    
+    plt.show()
+    plt.plot(L_curve_x, L_curve_y)
+    plt.xscale('log')
+    plt.show()
+    plt.plot(L_curve_x, v0_y)
+    plt.xscale('log')
     plt.show()
 
 plt.savefig("maybe_not_failed_unfolding.png", dpi=300)
