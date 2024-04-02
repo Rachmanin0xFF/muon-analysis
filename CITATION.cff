@@ -1,0 +1,18 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: muon-analysis
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Adam
+    family-names: Lastowka
+    affiliation: Florida Institute of Technology
+repository-code: 'https://github.com/Rachmanin0xFF/muon-analysis'
+url: 'https://github.com/Rachmanin0xFF/muon-analysis'
+abstract: >-
+  Muon telescope and lifetime analysis code, written
+  primarily in Python.

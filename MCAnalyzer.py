@@ -131,7 +131,7 @@ for i in range(0, len(bin_centers)):
 
 from scipy.optimize import curve_fit
 def func(x, A, B):
-    return A*np.cos(x)**2 + B
+    return A*np.cos(x)**2 + B*0.0
 popt, pcov = curve_fit(func, bin_centers, all_yvals, p0=[84, 13])
 print(popt)
 print(pcov[0][0]**0.5)
@@ -199,9 +199,13 @@ plt.plot(bin_centers*180.0/np.pi, combine_with_weights(consts.x), label="Deconvo
 plt.plot(bin_centers*180.0/np.pi, func(bin_centers, *popt), label=r"Fit: $(95\pm 10) \cos^2(\theta) + (5\pm 6)$", linestyle="dashed", color="red")
 
 print("AAAAAAAAAA")
-print(combine_with_weights(consts.x))
-print(func(bin_centers, *popt))
-print()
+for zab in combine_with_weights(consts.x):
+    print(zab)
+
+print("BBBBBBBB")
+for zab in func(bin_centers, *popt):
+    print(zab)
+print("AAAAAAAAA")
 
 iii = 0
 for (a, ww) in zip(ai, consts.x):
